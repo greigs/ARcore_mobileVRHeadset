@@ -15,7 +15,7 @@ public class Bars : MonoBehaviour {
     // Use this for initialization
     void Start () {
 	    sequencer = new MIDISequencer();
-	    sequencer.LoadCompleted += Sequencer_LoadCompleted;
+	    //sequencer.LoadCompleted += Sequencer_LoadCompleted;
 	    Thread t = new Thread(() => { sequencer.Init(); });
 	    t.Start();
 	    t.Join();
@@ -23,13 +23,9 @@ public class Bars : MonoBehaviour {
 	    sequencer.ShowDebug = true;
 	    
 	    sequencer.Load("Assets/bach.mid");
+        sequencer.Start();
     }
 
-    private void Sequencer_LoadCompleted(object sender, System.ComponentModel.AsyncCompletedEventArgs e)
-    {
-        sequencer.Start();
-    
-    }
 
     // Update is called once per frame
     void Update () {

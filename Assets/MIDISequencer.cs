@@ -2,17 +2,12 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using Commons.Music.Midi;
 //using Kazedan.Graphics;
-using Sanford.Multimedia.Midi;
 using Timer = System.Timers.Timer;
 
 namespace Kazedan.Construct
 {
-
-    public interface IRendererManager
-    {
-        void Render(object target);
-    }
     public class MIDISequencer : IDisposable
     {
         public int Delay { get; set; } = 500;
@@ -25,18 +20,19 @@ namespace Kazedan.Construct
 
         public string MIDIFile = @"null";
 
-        private OutputDevice outDevice;
-        private Sequence sequence;
-        private Sequencer sequencer;
+        ////private OutputDevice outDevice;
+        ////private Sequence sequence;
+        ////private Sequencer sequencer;
 
         private Timer eventTimer;
+        private MidiPlayer player;
+        private MidiMusic music;
+        private IMidiOutput output;
 
         public MIDIKeyboard Keyboard { get; set; }
         public NoteManager NoteManager { get; set; }
 
-        public IRendererManager RendererManager { get; private set; }
-
-        public event EventHandler<AsyncCompletedEventArgs> LoadCompleted;
+       
 
         public MIDISequencer()
         {
@@ -70,72 +66,27 @@ namespace Kazedan.Construct
 
             LoadingStatus = 0;
             // Create handles to MIDI devices
-            outDevice = new OutputDevice(0);    // You might want to change this!
-            sequencer = new Sequencer();
-            sequence = new Sequence();
-            //  RendererManager = new RendererManagerManager(NoteManager, Keyboard, sequence, sequencer);
-            LoadingStatus = -1;
-            // Set custom event handlers for sequencer
-            sequencer.ChannelMessagePlayed += delegate (object o, ChannelMessageEventArgs args)
-            {
-                ChannelCommand cmd = args.Message.Command;
-                int channel = args.Message.MidiChannel;
-                int data1 = args.Message.Data1;
-                int data2 = args.Message.Data2;
-                if (cmd == ChannelCommand.NoteOff || (cmd == ChannelCommand.NoteOn && data2 == 0))
-                {
-                    if (NoteManager.LastPlayed[channel, data1] != null)
-                    {
-                        Note n = NoteManager.LastPlayed[channel, data1];
-                        n.Playing = false;
-                    }
-                }
-                else if (cmd == ChannelCommand.NoteOn)
-                {
-                    Note n = new Note
-                    {
-                        Key = data1,
-                        Length = 0,
-                        Playing = true,
-                        Position = 0,
-                        Time = Stopwatch.ElapsedMilliseconds,
-                        Channel = channel,
-                        Velocity = data2
-                    };
-                    lock (NoteManager.Notes)
-                        NoteManager.Notes.Add(n);
-                    if (NoteManager.LastPlayed[channel, data1] != null)
-                        NoteManager.LastPlayed[channel, data1].Playing = false;
-                    NoteManager.LastPlayed[channel, data1] = n;
-                }
 
-                lock (NoteManager.Backlog)
-                {
-                    NoteManager.Backlog.Enqueue(new Event(delegate
-                    {
-                        outDevice.Send(args.Message);
-                        if (cmd == ChannelCommand.NoteOff || (cmd == ChannelCommand.NoteOn && data2 == 0))
-                        {
-                            if (Keyboard.KeyPressed[data1] > 0)
-                                Keyboard.KeyPressed[data1]--;
-                        }
-                        else if (cmd == ChannelCommand.NoteOn)
-                        {
-                            Keyboard.KeyPressed[data1]++;
-                        }
-                        else if (cmd == ChannelCommand.Controller)
-                        {
-                            if (data1 == 0x07)
-                                Keyboard.ChannelVolume[channel] = data2;
-                        }
-                        else if (cmd == ChannelCommand.PitchWheel)
-                        {
-                            int pitchValue = Get14BitValue(data1, data2);
-                            Keyboard.Pitchwheel[channel] = pitchValue;
-                        }
-                    }, Stopwatch.ElapsedMilliseconds, Delay));
-                }
-            };
+
+
+
+            var access = AndroidMidiAccess.;
+
+            output = access.OpenOutputAsync(access.Outputs.Last().Id).Result;
+            //var music = MidiMusic.Read(System.IO.File.OpenRead("mysong.mid"));
+            output.Send(new byte[] { 0xC0, GeneralMidi.Instruments.AcousticGrandPiano }, 0, 2, 0);
+            //player = new MidiPlayer(new MidiMusic(), output);
+            LoadingStatus = -1;
+
+            //player.EventReceived += PlayerHandler;
+
+            //outDevice = new OutputDevice(0);    // You might want to change this!
+            //sequencer = new Sequencer();
+            //sequence = new Sequence();
+            //  RendererManager = new RendererManagerManager(NoteManager, Keyboard, sequence, sequencer);
+
+            // Set custom event handlers for sequencer
+
 
             // BUG A bug in the Sanford.Multimedia.Midi library prevents certain SysEx messages from playing
             // Disabling SysEx messages completely solves this issue
@@ -144,67 +95,137 @@ namespace Kazedan.Construct
             //    lock (NoteManager.Backlog)
             //        NoteManager.Backlog.Enqueue(new Event(() => { try { outDevice.Send(args.Message); } catch { } }, Stopwatch.ElapsedMilliseconds, Delay));
             //};
-            sequencer.Chased += delegate (object o, ChasedEventArgs args)
+            //sequencer.Chased += delegate (object o, ChasedEventArgs args)
+            //{
+            //    foreach (ChannelMessage message in args.Messages)
+            //        lock (NoteManager.Backlog)
+            //            NoteManager.Backlog.Enqueue(new Event(() => { try { outDevice.Send(message); } catch { } }, Stopwatch.ElapsedMilliseconds, Delay));
+            //};
+            //sequencer.Stopped += delegate (object o, StoppedEventArgs args)
+            //{
+            //    foreach (ChannelMessage message in args.Messages)
+            //        lock (NoteManager.Backlog)
+            //            NoteManager.Backlog.Enqueue(new Event(() => { try { outDevice.Send(message); } catch { } }, Stopwatch.ElapsedMilliseconds, Delay));
+            //     Stop everything when the MIDI is done playing
+            //    Stop();
+            //};
+            //sequence.LoadCompleted += delegate (object o, AsyncCompletedEventArgs args)
+            //{
+            //    LoadingStatus = -1;
+            //    if (args.Cancelled)
+            //    {
+            //        MessageBox.Show("The operation was cancelled.", "MIDITrailer - Error", MessageBoxButtons.OK,
+            //            MessageBoxIcon.Error);
+            //        return;
+            //    }
+            //    sequencer.Sequence = sequence;
+            //    if (LoadCompleted != null)
+            //    {
+            //        LoadCompleted.Invoke(this, args);
+            //    }
+
+            //};
+            //sequence.LoadProgressChanged += delegate (object sender, ProgressChangedEventArgs args)
+            //{
+            //    LoadingStatus = args.ProgressPercentage;
+            //};
+
+
+
+        }
+
+        private void PlayerHandler(MidiEvent e)
+        {
+
+
+            var cmd = e.EventType;
+            byte data1 = 0;
+            byte data2 = 0;
+            var channel = 1;//e.Channel;
+
+            if (cmd == MidiEvent.NoteOff || (cmd == MidiEvent.NoteOn))
             {
-                foreach (ChannelMessage message in args.Messages)
-                    lock (NoteManager.Backlog)
-                        NoteManager.Backlog.Enqueue(new Event(() => { try { outDevice.Send(message); } catch { } }, Stopwatch.ElapsedMilliseconds, Delay));
-            };
-            sequencer.Stopped += delegate (object o, StoppedEventArgs args)
+                data1 = e.Msb;
+                data2 = e.Lsb;
+            }
+
+            if (cmd == MidiEvent.NoteOff || (cmd == MidiEvent.NoteOn && data2 == 0))
             {
-                foreach (ChannelMessage message in args.Messages)
-                    lock (NoteManager.Backlog)
-                        NoteManager.Backlog.Enqueue(new Event(() => { try { outDevice.Send(message); } catch { } }, Stopwatch.ElapsedMilliseconds, Delay));
-                // Stop everything when the MIDI is done playing
-                Stop();
-            };
-            sequence.LoadCompleted += delegate (object o, AsyncCompletedEventArgs args)
-            {
-                LoadingStatus = -1;
-                if (args.Cancelled)
+                if (NoteManager.LastPlayed[channel, data1] != null)
                 {
-                    //MessageBox.Show("The operation was cancelled.", "MIDITrailer - Error", MessageBoxButtons.OK,
-                    //    MessageBoxIcon.Error);
-                    return;
+                    Note n = NoteManager.LastPlayed[channel, data1];
+                    n.Playing = false;
                 }
-                sequencer.Sequence = sequence;
-                if (LoadCompleted != null)
-                {
-                    LoadCompleted.Invoke(this, args);
-                }
-
-            };
-            sequence.LoadProgressChanged += delegate (object sender, ProgressChangedEventArgs args)
+            }
+            else if (cmd == MidiEvent.NoteOn)
             {
-                LoadingStatus = args.ProgressPercentage;
-            };
+                Note n = new Note
+                {
+                    Key = data1,
+                    Length = 0,
+                    Playing = true,
+                    Position = 0,
+                    Time = Stopwatch.ElapsedMilliseconds,
+                    Channel = channel,
+                    Velocity = data2
+                };
+                lock (NoteManager.Notes)
+                    NoteManager.Notes.Add(n);
+                if (NoteManager.LastPlayed[channel, data1] != null)
+                    NoteManager.LastPlayed[channel, data1].Playing = false;
+                NoteManager.LastPlayed[channel, data1] = n;
+            }
 
-
+            lock (NoteManager.Backlog)
+            {
+                NoteManager.Backlog.Enqueue(new Event(delegate
+                {
+                    //output.Send(e.Data,e.);
+                    //outDevice.Send(args.Message);
+                    if (cmd == MidiEvent.NoteOff || (cmd == MidiEvent.NoteOn && data2 == 0))
+                    {
+                        if (Keyboard.KeyPressed[data1] > 0)
+                            Keyboard.KeyPressed[data1]--;
+                    }
+                    else if (cmd == MidiEvent.NoteOn)
+                    {
+                        Keyboard.KeyPressed[data1]++;
+                    }
+                    else if (cmd == MidiEvent.CC)
+                    {
+                        if (data1 == 0x07)
+                            Keyboard.ChannelVolume[channel] = data2;
+                    }
+                    else if (cmd == MidiEvent.Pitch)
+                    {
+                        int pitchValue = Get14BitValue(data1, data2);
+                        Keyboard.Pitchwheel[channel] = pitchValue;
+                    }
+                }, Stopwatch.ElapsedMilliseconds, Delay));
+            }
 
         }
 
         public void Load(string file)
         {
             MIDIFile = file;
-            sequencer.Stop();
-            sequencer.Position = 0;
-            sequence.LoadAsync(file);
+            music = MidiMusic.Read(System.IO.File.OpenRead(file));
+            player = new MidiPlayer(music, output);
+            player.EventReceived += PlayerHandler;
         }
 
         public void Reset()
         {
             Keyboard.Reset();
             NoteManager.Reset();
-            outDevice?.Reset();
+            output.CloseAsync();
         }
 
         public void Dispose()
         {
-            outDevice.Close();
-            outDevice.Dispose();
-            sequencer.Stop();
-            sequencer.Dispose();
-            sequence?.Dispose();
+            player.PauseAsync();
+            player.Dispose();
+            output.Dispose();
         }
 
         public void Stop()
@@ -212,39 +233,32 @@ namespace Kazedan.Construct
             if (Stopped)
                 return;
             eventTimer.Stop();
-            sequencer.Stop();
+            //sequencer.Stop();
             Stopwatch.Stop();
             Stopped = true;
+            player.PauseAsync();
         }
 
         public void Start()
         {
-            if (!Stopped)
-                return;
-
-            eventTimer.Start();
-            if (sequencer.Position > 0)
-                sequencer.Continue();
-            else
-                sequencer.Start();
-
             Stopwatch.Start();
-            Stopped = false;
+            player.PlayAsync();
+            
         }
 
         public void Jump(int tick)
         {
             Reset();
-            sequencer.Position = tick;
-            if (Stopped)
-                sequencer.Stop();
+            //sequencer.Position = tick;
+            //if (Stopped)
+            //    sequencer.Stop();
         }
 
 
 
         public void UpdateNotePositions()
         {
-            int keyboardY = 500;
+            int keyboardY = 100;
             long now = Stopwatch.ElapsedMilliseconds;
             float speed = 1.0f * keyboardY / Delay;
             // Update all note positions
