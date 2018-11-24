@@ -22,7 +22,7 @@ public class Bars : MonoBehaviour {
         
 	    sequencer.ShowDebug = true;
 	    
-	    sequencer.Load("C:/repo/Piano/Assets/bach.mid");
+	    sequencer.Load("Assets/bach.mid");
     }
 
     private void Sequencer_LoadCompleted(object sender, System.ComponentModel.AsyncCompletedEventArgs e)
