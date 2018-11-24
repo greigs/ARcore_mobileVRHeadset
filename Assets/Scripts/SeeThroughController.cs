@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.XR;
 using UnityEngine.XR.ARFoundation;
+using ARRenderMode = UnityEngine.XR.ARRenderMode;
 
 public sealed class SeeThroughController : MonoBehaviour {
     #region Editor public fields
