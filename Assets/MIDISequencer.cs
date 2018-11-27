@@ -2,7 +2,13 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-using Commons.Music.Midi;
+using AudioSynthesis.Midi;
+using AudioSynthesis.Midi.Event;
+using AudioSynthesis.Sequencer;
+using AudioSynthesis.Synthesis;
+using UnityEngine;
+using UnityMidi;
+
 //using Kazedan.Graphics;
 using Timer = System.Timers.Timer;
 
@@ -10,9 +16,14 @@ namespace Kazedan.Construct
 {
     public class MIDISequencer : IDisposable
     {
-        public int Delay { get; set; } = 500;
+
+        
+        public int Delay { get; set; } = 1000;
         public bool ShowDebug { get; set; } = true;
         private int LoadingStatus { get; set; } = -1;
+
+        public Bars MidiPlayer;
+
         private long LastFancyTick { get; set; }
         public bool Stopped { get; private set; } = true;
         public bool Initialized { get; private set; }
@@ -25,9 +36,6 @@ namespace Kazedan.Construct
         ////private Sequencer sequencer;
 
         private Timer eventTimer;
-        private MidiPlayer player;
-        private MidiMusic music;
-        private IMidiOutput output;
 
         public MIDIKeyboard Keyboard { get; set; }
         public NoteManager NoteManager { get; set; }
@@ -66,15 +74,14 @@ namespace Kazedan.Construct
 
             LoadingStatus = 0;
             // Create handles to MIDI devices
+            MidiPlayer.synthesizer.MidiEvent += PlayerHandler;
 
 
 
+            //MidiPlayer.Awake();
 
-            var access = AndroidMidiAccess.;
-
-            output = access.OpenOutputAsync(access.Outputs.Last().Id).Result;
             //var music = MidiMusic.Read(System.IO.File.OpenRead("mysong.mid"));
-            output.Send(new byte[] { 0xC0, GeneralMidi.Instruments.AcousticGrandPiano }, 0, 2, 0);
+            //output.Send(new byte[] { 0xC0, GeneralMidi.Instruments.AcousticGrandPiano }, 0, 2, 0);
             //player = new MidiPlayer(new MidiMusic(), output);
             LoadingStatus = -1;
 
@@ -133,23 +140,24 @@ namespace Kazedan.Construct
 
 
         }
+        
 
-        private void PlayerHandler(MidiEvent e)
+        private void PlayerHandler(object sender, MidiMessage e)
         {
 
 
-            var cmd = e.EventType;
-            byte data1 = 0;
-            byte data2 = 0;
-            var channel = 1;//e.Channel;
+            var cmd = e.command;
+            int data1 = 0;
+            int data2 = 0;
+            var channel = 1;
 
-            if (cmd == MidiEvent.NoteOff || (cmd == MidiEvent.NoteOn))
+            if (cmd == (int)MidiEventTypeEnum.NoteOff || (cmd == (int)MidiEventTypeEnum.NoteOn))
             {
-                data1 = e.Msb;
-                data2 = e.Lsb;
+                data1 = e.data1;
+                data2 = e.data2;
             }
 
-            if (cmd == MidiEvent.NoteOff || (cmd == MidiEvent.NoteOn && data2 == 0))
+            if (cmd == (int)MidiEventTypeEnum.NoteOff || (cmd == (int)MidiEventTypeEnum.NoteOn && data2 == 0))
             {
                 if (NoteManager.LastPlayed[channel, data1] != null)
                 {
@@ -157,7 +165,7 @@ namespace Kazedan.Construct
                     n.Playing = false;
                 }
             }
-            else if (cmd == MidiEvent.NoteOn)
+            else if (cmd == (int)MidiEventTypeEnum.NoteOn)
             {
                 Note n = new Note
                 {
@@ -180,23 +188,24 @@ namespace Kazedan.Construct
             {
                 NoteManager.Backlog.Enqueue(new Event(delegate
                 {
-                    //output.Send(e.Data,e.);
+                    MidiPlayer.ProcessMidiMessage(e.channel,e.command,e.data1,e.data2);
+                    //output.Send(e.Data, 0, 100, 0);
                     //outDevice.Send(args.Message);
-                    if (cmd == MidiEvent.NoteOff || (cmd == MidiEvent.NoteOn && data2 == 0))
+                    if (cmd == (int)MidiEventTypeEnum.NoteOff || (cmd == (int)MidiEventTypeEnum.NoteOn && data2 == 0))
                     {
                         if (Keyboard.KeyPressed[data1] > 0)
                             Keyboard.KeyPressed[data1]--;
                     }
-                    else if (cmd == MidiEvent.NoteOn)
+                    else if (cmd == (int)MidiEventTypeEnum.NoteOn)
                     {
                         Keyboard.KeyPressed[data1]++;
                     }
-                    else if (cmd == MidiEvent.CC)
+                    else if (cmd == (int)MidiEventTypeEnum.Controller)
                     {
                         if (data1 == 0x07)
                             Keyboard.ChannelVolume[channel] = data2;
                     }
-                    else if (cmd == MidiEvent.Pitch)
+                    else if (cmd == (int)MidiEventTypeEnum.PitchBend)
                     {
                         int pitchValue = Get14BitValue(data1, data2);
                         Keyboard.Pitchwheel[channel] = pitchValue;
@@ -206,26 +215,25 @@ namespace Kazedan.Construct
 
         }
 
-        public void Load(string file)
-        {
-            MIDIFile = file;
-            music = MidiMusic.Read(System.IO.File.OpenRead(file));
-            player = new MidiPlayer(music, output);
-            player.EventReceived += PlayerHandler;
-        }
+        //public void Load(string file)
+        //{
+        //    MIDIFile = file;
+        //    music = MidiMusic.Read(System.IO.File.OpenRead(file));
+        //    player = new MidiPlayer(music, output);
+        //    player.EventReceived += PlayerHandler;
+        //}
 
         public void Reset()
         {
             Keyboard.Reset();
             NoteManager.Reset();
-            output.CloseAsync();
+            //outDevice?.Reset();
         }
 
         public void Dispose()
         {
-            player.PauseAsync();
-            player.Dispose();
-            output.Dispose();
+
+            //player.Dispose();
         }
 
         public void Stop()
@@ -236,13 +244,14 @@ namespace Kazedan.Construct
             //sequencer.Stop();
             Stopwatch.Stop();
             Stopped = true;
-            player.PauseAsync();
         }
 
         public void Start()
         {
+            Stopped = false;
+            eventTimer.Start();
             Stopwatch.Start();
-            player.PlayAsync();
+           // player.PlayAsync();
             
         }
 

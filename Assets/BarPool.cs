@@ -6,7 +6,7 @@ public class BarPool : MonoBehaviour
 {
     public static List<GameObject> bars;
     public GameObject bar;
-    public int pooledMax = 20;
+    public int pooledMax = 50;
 	// Use this for initialization
 	void Start () {
 		bars = new List<GameObject>();
