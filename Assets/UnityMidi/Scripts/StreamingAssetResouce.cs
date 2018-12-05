@@ -36,11 +36,12 @@ namespace UnityMidi
             //WWW file = new WWW("jar:file://" + Application.dataPath + "!/assets/" + streamingAssetPath);
 
             //WWW file = new WWW("file://" + Application.dataPath + "/StreamingAssets/" + streamingAssetPath);
-#if UNITY_ANDROID
+#if UNITY_EDITOR
 
-            WWW file = new WWW("jar:file://" + Application.dataPath + "!/assets/" + streamingAssetPath);
+            WWW file = new WWW(Application.dataPath + "/StreamingAssets/" + streamingAssetPath);
 #else
-            WWW file = new WWW(Application.dataPath + "/" + streamingAssetPath);
+            
+            WWW file = new WWW("jar:file://" + Application.dataPath + "!/assets/" + streamingAssetPath);
 #endif
             while (!file.isDone)
             {

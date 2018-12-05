@@ -93,25 +93,30 @@ public class Bars : MonoBehaviour {
 
         var notesArray = sequencer.NoteManager.Notes.ToArray();
 
+        
         foreach (var n in notesArray)
         {
+            var shuntNotes = 40;
             var noteOffset = 0;
             var noteCount = 88;
-            float keywidth = 3f;
-            float scale = 0.001f;
+            float keywidth = 1f;
+            float xscale = 0.0005f;
+            float yscale = 0.005f;
             float yoffset = 5f;
             float xspacing = 30f;
             if (n.Key >= noteOffset && n.Key < noteOffset + noteCount && n.Length > 0 && n.Velocity > 0)
             {
-                float left = n.Key * keywidth + (xspacing * n.Key);
+                float left = (n.Key - shuntNotes) * keywidth + (xspacing * (n.Key - shuntNotes));
                 float x = left;
                 float y = 100f - n.Position;
                 float width = keywidth;
                 float height = n.Length * 1f;
                 var bar = BarPool.bars[noteIndex];
                 var renderer = bar.GetComponentInChildren<SpriteRenderer>();
-                renderer.transform.position = new Vector3(x * scale, (y - (height / 2)) * scale);
-                renderer.size = new Vector3(width * 0.01f, height * scale);
+                renderer.transform.position = new Vector3(this.transform.position.x + (x * xscale), this.transform.position.y + ((y - (height / 2)) * yscale), this.transform.position.z);
+                //renderer.transform.rotation = this.transform.rotation;
+                //renderer.transform.Rotate(180,0,0);
+                renderer.size = new Vector3(width * 0.01f, height * yscale);
                 bar.SetActive(true);
 
             }

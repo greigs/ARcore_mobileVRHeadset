@@ -72,7 +72,7 @@ public class SpawnOnPlane : MonoBehaviour, IPointerClickHandler {
             var hit = raycastHits[0];
             var pose = hit.pose;
 
-            crosshair.SetActive(true);
+            //crosshair.SetActive(true);
             crosshair.transform.position = pose.position;
             crosshair.transform.up = pose.up;
 
@@ -95,6 +95,7 @@ public class SpawnOnPlane : MonoBehaviour, IPointerClickHandler {
         var ray = mainCamera.ScreenPointToRay(screenCenter);
         if (sessionOrigin.Raycast(ray, raycastHits, TrackableType.PlaneWithinInfinity)) {
             var pose = raycastHits[0].pose;
+            //pose.rotation.eulerAngles.Set(180f, 0f, 0f);
             var spawnedObject = Instantiate(prefabToSpawn, pose.position, pose.rotation);
 
             var forward = -mainCamera.transform.forward;

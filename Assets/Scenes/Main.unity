@@ -984,8 +984,8 @@ MonoBehaviour:
   prefabToSpawn: {fileID: 1094273023488376, guid: e0924577899ad8e409dd8b261d1fca1c,
     type: 2}
   sessionOrigin: {fileID: 623567135}
-  scaleMinimum: 2
-  scaleMaximum: 20
+  scaleMinimum: 1
+  scaleMaximum: 1
 --- !u!114 &2046901192
 MonoBehaviour:
   m_ObjectHideFlags: 0
